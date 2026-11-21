@@ -258,10 +258,28 @@ export default function GenealogyReportModal({
 
     setDownloadingPdf(true);
     try {
+      // 1. Wait for document.fonts.ready so Bengali fonts are fully loaded
+      if (typeof document !== "undefined" && "fonts" in document) {
+        await document.fonts.ready;
+      }
+      await new Promise((resolve) => setTimeout(resolve, 150));
+
+      // 2. High-density pixel ratio (minimum 3x) for crisp Bengali typography
+      const pixelRatio = Math.min(
+        Math.max(typeof window !== "undefined" ? window.devicePixelRatio || 1 : 1, 3),
+        4
+      );
+
       const dataUrl = await toPng(el, {
         cacheBust: true,
-        pixelRatio: 2,
+        pixelRatio,
         backgroundColor: "#ffffff",
+        style: {
+          fontFamily:
+            "var(--font-hind-siliguri), 'Hind Siliguri', var(--font-noto-bengali), 'Noto Sans Bengali', sans-serif",
+          letterSpacing: "normal",
+          textRendering: "geometricPrecision",
+        },
       });
 
       const img = new Image();
@@ -270,7 +288,7 @@ export default function GenealogyReportModal({
         img.onload = resolve;
       });
 
-      // A4 portrait in mm: 210 x 297
+      // A4 portrait in mm: 210 x 297 with margins
       const pdf = new jsPDF({
         orientation: "p",
         unit: "mm",
@@ -279,20 +297,23 @@ export default function GenealogyReportModal({
 
       const pageWidth = 210;
       const pageHeight = 297;
-      const imgWidth = pageWidth;
+      const margin = 8;
+      const usableWidth = pageWidth - margin * 2;
+      const usableHeight = pageHeight - margin * 2;
+      const imgWidth = usableWidth;
       const imgHeight = (img.height * imgWidth) / img.width;
 
       let heightLeft = imgHeight;
-      let position = 0;
+      let position = margin;
 
-      pdf.addImage(dataUrl, "PNG", 0, position, imgWidth, imgHeight);
-      heightLeft -= pageHeight;
+      pdf.addImage(dataUrl, "PNG", margin, position, imgWidth, imgHeight, undefined, "FAST");
+      heightLeft -= usableHeight;
 
       while (heightLeft > 0) {
-        position -= pageHeight;
+        position -= usableHeight;
         pdf.addPage();
-        pdf.addImage(dataUrl, "PNG", 0, position, imgWidth, imgHeight);
-        heightLeft -= pageHeight;
+        pdf.addImage(dataUrl, "PNG", margin, position, imgWidth, imgHeight, undefined, "FAST");
+        heightLeft -= usableHeight;
       }
 
       const safeTitle = (treeTitle || "bongshodhara").replace(

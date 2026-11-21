@@ -17,8 +17,7 @@ import {
   type ReactFlowInstance,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
-import { toPng } from "html-to-image";
-import { jsPDF } from "jspdf";
+import { exportTreeGraphics } from "@/lib/export-tree";
 import PersonNodeComponent from "@/components/tree/PersonNode";
 import MemberDrawer from "@/components/forms/MemberDrawer";
 import RelationshipModal from "@/components/tree/RelationshipModal";
@@ -554,32 +553,21 @@ export default function TreeDetailPage() {
     if (!exportStageRef.current || !tree) return;
     setExporting(true);
     try {
-      const dataUrl = await toPng(exportStageRef.current, {
-        cacheBust: true,
-        pixelRatio: 2,
-        backgroundColor: "#ffffff",
+      await exportTreeGraphics({
+        element: exportStageRef.current,
+        fileNameBase: tree.title_bn || "bongshodhara",
+        format,
+        orientation: "landscape",
+        backgroundColor:
+          frameTheme === "emerald"
+            ? "#f0fdf4"
+            : frameTheme === "royal"
+            ? "#fffbeb"
+            : "#ffffff",
       });
-
-      if (format === "png") {
-        const link = document.createElement("a");
-        link.download = `${tree.title_bn || "bongshodhara"}.png`;
-        link.href = dataUrl;
-        link.click();
-      } else {
-        const img = new Image();
-        img.src = dataUrl;
-        await new Promise((resolve) => {
-          img.onload = resolve;
-        });
-        const orientation = img.width >= img.height ? "l" : "p";
-        const pdf = new jsPDF({
-          orientation,
-          unit: "px",
-          format: [img.width, img.height],
-        });
-        pdf.addImage(dataUrl, "PNG", 0, 0, img.width, img.height);
-        pdf.save(`${tree.title_bn || "bongshodhara"}.pdf`);
-      }
+    } catch (err: unknown) {
+      console.error("handleExportGraphic error:", err);
+      alert("এক্সপোর্ট করতে সমস্যা হয়েছে। অনুগ্রহ করে আবার চেষ্টা করুন।");
     } finally {
       setExporting(false);
     }
