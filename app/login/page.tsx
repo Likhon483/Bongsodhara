@@ -113,8 +113,16 @@ function LoginForm() {
           rawUrlError!.toLowerCase().includes("code verifier") ||
           rawUrlError!.toLowerCase().includes("pkce")));
 
+    const isGuestSync =
+      searchParams.get("action") === "sync" ||
+      searchParams.get("redirect")?.includes("guest");
+
     const initialMode: "login" | "signup" | "forgot" =
-      urlMode === "forgot" || isExpiredNotice ? "forgot" : "login";
+      urlMode === "forgot" || isExpiredNotice
+        ? "forgot"
+        : urlMode === "signup" || isGuestSync
+        ? "signup"
+        : "login";
     return { mode: initialMode, error };
   });
 
@@ -146,6 +154,14 @@ function LoginForm() {
     setErrorMsg(null);
     setInfoMsg(null);
 
+    const redirectParam = searchParams.get("redirect");
+    const actionParam = searchParams.get("action");
+    const targetUrl = redirectParam
+      ? actionParam
+        ? `${redirectParam}?action=${actionParam}`
+        : redirectParam
+      : "/dashboard";
+
     try {
       if (mode === "login") {
         const { error } = await supabase.auth.signInWithPassword({
@@ -153,16 +169,38 @@ function LoginForm() {
           password,
         });
         if (error) throw error;
-        router.push("/dashboard");
+        router.push(targetUrl);
         router.refresh();
       } else if (mode === "signup") {
-        const { error } = await supabase.auth.signUp({
+        const { data: signUpData, error: signUpErr } = await supabase.auth.signUp({
           email: email.trim(),
           password,
         });
-        if (error) throw error;
+        if (signUpErr) throw signUpErr;
+
+        // If session returned immediately:
+        if (signUpData.session) {
+          router.push(targetUrl);
+          router.refresh();
+          return;
+        }
+
+        // Try signing in immediately if auto-confirm is enabled
+        const { data: signInData, error: signInErr } =
+          await supabase.auth.signInWithPassword({
+            email: email.trim(),
+            password,
+          });
+
+        if (!signInErr && signInData.session) {
+          router.push(targetUrl);
+          router.refresh();
+          return;
+        }
+
+        // Non-blocking polite message allowing direct login or verification
         setInfoMsg(
-          "অ্যাকাউন্ট তৈরি হয়েছে! ইমেইল ভেরিফিকেশন চালু থাকলে ইনবক্স চেক করুন অথবা সরাসরি লগইন করুন।"
+          "অ্যাকাউন্ট তৈরি হয়েছে! আপনি সরাসরি লগইন করতে পারেন অথবা ইনবক্স ভেরিফাই করতে পারেন।"
         );
       } else if (mode === "forgot") {
         // Dynamic origin support for Vercel deployment and local development
@@ -226,6 +264,16 @@ function LoginForm() {
             {mode === "forgot" && "পাসওয়ার্ড পুনরুদ্ধার করতে ইমেইল ঠিকানা দিন"}
           </p>
         </div>
+
+        {/* Guest Sync Notice */}
+        {searchParams.get("action") === "sync" && (
+          <div className="mb-5 p-3 rounded-2xl bg-amber-50/90 border border-amber-300/80 text-xs text-amber-950 flex items-center gap-2.5">
+            <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse shrink-0" />
+            <span>
+              আপনার গেস্ট বংশধারাটি নিরাপদে অ্যাকাউন্টে সেভ করতে লগইন বা নতুন অ্যাকাউন্ট খুলুন।
+            </span>
+          </div>
+        )}
 
         {/* Mode Selector Tabs (Hidden in forgot mode) */}
         {mode !== "forgot" ? (

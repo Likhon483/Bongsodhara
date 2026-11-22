@@ -2,6 +2,11 @@
 
 import { useState, useRef } from "react";
 import { createClient } from "@/lib/supabase/client";
+import {
+  updateGuestPerson,
+  addGuestPerson,
+  deleteGuestPerson,
+} from "@/lib/guest-tree";
 import type {
   PersonRecord,
   UnionRecord,
@@ -77,6 +82,7 @@ function MemberDrawerContent({
   onUpdated,
 }: DrawerContentProps) {
   const supabase = createClient();
+  const isGuest = treeId === "guest";
 
   const existingSpouses = unions
     .filter(
@@ -136,6 +142,35 @@ function MemberDrawerContent({
     setErrorMsg(null);
     setStatusMsg(null);
 
+    if (isGuest) {
+      try {
+        const reader = new FileReader();
+        reader.onload = async (event) => {
+          const dataUrl = event.target?.result as string;
+          if (!dataUrl) return;
+          updateGuestPerson(selectedPerson.id, { avatar_url: dataUrl });
+          setMemberAvatarUrl(dataUrl);
+          await onUpdated();
+          setStatusMsg("ছবি সফলভাবে যুক্ত হয়েছে।");
+          setUploadingAvatar(false);
+          if (fileInputRef.current) fileInputRef.current.value = "";
+        };
+        reader.onerror = () => {
+          setErrorMsg("ছবি লোড করতে সমস্যা হয়েছে।");
+          setUploadingAvatar(false);
+          if (fileInputRef.current) fileInputRef.current.value = "";
+        };
+        reader.readAsDataURL(file);
+        return;
+      } catch (err: unknown) {
+        console.error("handleAvatarUpload guest error:", err);
+        setErrorMsg(formatErrorMessage(err));
+        setUploadingAvatar(false);
+        if (fileInputRef.current) fileInputRef.current.value = "";
+        return;
+      }
+    }
+
     try {
       const ext = file.name.split(".").pop() || "png";
       const filePath = getAvatarFilePath(treeId, selectedPerson.id, ext);
@@ -181,6 +216,22 @@ function MemberDrawerContent({
     setUploadingAvatar(true);
     setErrorMsg(null);
     setStatusMsg(null);
+
+    if (isGuest) {
+      try {
+        updateGuestPerson(selectedPerson.id, { avatar_url: null });
+        setMemberAvatarUrl("");
+        await onUpdated();
+        setStatusMsg("ছবি সফলভাবে মুছে ফেলা হয়েছে।");
+      } catch (err: unknown) {
+        console.error("handleRemoveAvatar guest error:", err);
+        setErrorMsg(formatErrorMessage(err));
+      } finally {
+        setUploadingAvatar(false);
+      }
+      return;
+    }
+
     try {
       const { error: updateError } = await supabase
         .from("persons")
@@ -227,6 +278,29 @@ function MemberDrawerContent({
     setErrorMsg(null);
     setStatusMsg(null);
 
+    if (isGuest) {
+      try {
+        updateGuestPerson(selectedPerson.id, {
+          full_name_bn: memberNameBn.trim(),
+          gender: memberGender,
+          hometown_bn: memberHometownBn.trim() || null,
+          is_alive: memberIsAlive,
+          birth_date_ad: memberBirthDateAd.trim() || null,
+          birth_date_bs: memberBirthDateBs.trim() || null,
+          death_date_ad: memberIsAlive ? null : (memberDeathDateAd.trim() || null),
+          avatar_url: memberAvatarUrl || null,
+        });
+        await onUpdated();
+        setStatusMsg("সদস্যের তথ্য সফলভাবে আপডেট হয়েছে।");
+      } catch (err: unknown) {
+        console.error("handleSaveSelectedMemberInfo guest error:", err);
+        setErrorMsg(formatErrorMessage(err));
+      } finally {
+        setSavingMemberInfo(false);
+      }
+      return;
+    }
+
     try {
       const { error } = await supabase
         .from("persons")
@@ -255,11 +329,37 @@ function MemberDrawerContent({
 
   async function handleAddRelatedPerson(e: React.FormEvent) {
     e.preventDefault();
-    if (!newNameBn.trim()) return;
+    if (!newNameBn.trim() || mode === "edit") return;
 
     setSavingRelation(true);
     setErrorMsg(null);
     setStatusMsg(null);
+
+    if (isGuest) {
+      try {
+        addGuestPerson({
+          treeId: "guest",
+          mode,
+          targetPersonId: selectedPerson.id,
+          spouseId: selectedSpouseId || null,
+          personData: {
+            full_name_bn: newNameBn.trim(),
+            gender: newGender,
+            hometown_bn: newHometownBn.trim() || null,
+            is_alive: newIsAlive,
+          },
+        });
+        await onUpdated();
+        setNewNameBn("");
+        onClose();
+      } catch (err: unknown) {
+        console.error("handleAddRelatedPerson guest error:", err);
+        setErrorMsg(formatErrorMessage(err));
+      } finally {
+        setSavingRelation(false);
+      }
+      return;
+    }
 
     try {
       const { data: newPerson, error: personError } = await supabase
@@ -353,6 +453,21 @@ function MemberDrawerContent({
 
     setSavingMemberInfo(true);
     setErrorMsg(null);
+
+    if (isGuest) {
+      try {
+        deleteGuestPerson(selectedPerson.id);
+        await onUpdated();
+        onClose();
+      } catch (err: unknown) {
+        console.error("handleDeletePerson guest error:", err);
+        setErrorMsg(formatErrorMessage(err));
+      } finally {
+        setSavingMemberInfo(false);
+      }
+      return;
+    }
+
     try {
       const { error } = await supabase
         .from("persons")

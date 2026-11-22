@@ -122,10 +122,10 @@ export default function HomePage() {
                   লগইন
                 </Link>
                 <Link
-                  href="/login"
+                  href="/tree/guest"
                   className="inline-flex items-center gap-1.5 px-4 py-2 sm:px-5 sm:py-2.5 rounded-xl text-xs sm:text-sm font-bold bg-emerald-800 hover:bg-emerald-900 text-white shadow-md shadow-emerald-900/15 transition cursor-pointer"
                 >
-                  নতুন বংশধারা শুরু করুন
+                  বংশধারা তৈরি করুন
                   <ArrowRight className="w-4 h-4 text-emerald-300" />
                 </Link>
               </>
@@ -175,11 +175,11 @@ export default function HomePage() {
                 {/* দুটি CTA বাটন */}
                 <div className="pt-2 flex flex-wrap items-center justify-center lg:justify-start gap-3.5">
                   <Link
-                    href={isLoggedIn ? "/dashboard" : "/login"}
+                    href={isLoggedIn ? "/dashboard" : "/tree/guest"}
                     className="inline-flex items-center gap-2.5 px-6 py-3.5 sm:px-7 sm:py-4 rounded-2xl text-sm sm:text-base font-bold bg-emerald-800 hover:bg-emerald-900 text-white shadow-xl shadow-emerald-900/20 hover:-translate-y-0.5 transition duration-200 cursor-pointer"
                   >
                     <TreePine className="w-5 h-5 text-amber-300" />
-                    {isLoggedIn ? "আপনার ড্যাশবোর্ডে যান" : "বিনামূল্যে বংশধারা শুরু করুন"}
+                    {isLoggedIn ? "আপনার ড্যাশবোর্ডে যান" : "বংশধারা তৈরি করুন"}
                     <ArrowRight className="w-4 h-4 text-emerald-300" />
                   </Link>
 
@@ -616,11 +616,11 @@ export default function HomePage() {
             {/* কল-টু-অ্যাকশন স্ট্রিপ */}
             <div className="mt-12 text-center">
               <Link
-                href={isLoggedIn ? "/dashboard" : "/login"}
+                href={isLoggedIn ? "/dashboard" : "/tree/guest"}
                 className="inline-flex items-center gap-2 px-7 py-3.5 rounded-2xl text-sm sm:text-base font-bold bg-emerald-800 hover:bg-emerald-900 text-white shadow-lg shadow-emerald-900/15 transition cursor-pointer"
               >
                 <TreePine className="w-5 h-5 text-amber-300" />
-                {isLoggedIn ? "ড্যাশবোর্ডে প্রবেশ করুন" : "আজই আপনার বংশধারা শুরু করুন"}
+                {isLoggedIn ? "ড্যাশবোর্ডে প্রবেশ করুন" : "বংশধারা তৈরি করুন"}
                 <ArrowRight className="w-4 h-4 ml-0.5" />
               </Link>
             </div>

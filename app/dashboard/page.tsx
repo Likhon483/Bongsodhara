@@ -24,6 +24,11 @@ import {
   Sparkles,
 } from "lucide-react";
 import { formatErrorMessage } from "@/lib/error-utils";
+import {
+  hasGuestTree,
+  getGuestTree,
+  syncGuestTreeToSupabase,
+} from "@/lib/guest-tree";
 
 interface TreeItem {
   id: string;
@@ -99,6 +104,26 @@ export default function DashboardPage() {
   const [creating, setCreating] = useState(false);
   const [modalError, setModalError] = useState<string | null>(null);
 
+  // Guest draft sync state
+  const [guestDraftExists, setGuestDraftExists] = useState(false);
+  const [guestTreeTitle, setGuestTreeTitle] = useState("");
+  const [syncingGuest, setSyncingGuest] = useState(false);
+
+  async function handleSyncGuestDraft() {
+    setSyncingGuest(true);
+    try {
+      const res = await syncGuestTreeToSupabase(supabase);
+      setGuestDraftExists(false);
+      alert("গেস্ট বংশধারা সফলভাবে অ্যাকাউন্টে সংরক্ষিত হয়েছে!");
+      router.push(`/tree/${res.treeId}`);
+    } catch (err: unknown) {
+      console.error("handleSyncGuestDraft error:", err);
+      alert(`বংশধারা সংরক্ষণে সমস্যা হয়েছে:\n${formatErrorMessage(err)}`);
+    } finally {
+      setSyncingGuest(false);
+    }
+  }
+
   // Close dropdown on outside click
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -130,6 +155,13 @@ export default function DashboardPage() {
 
       if (!ignore) {
         setUserEmail(user.email ?? null);
+        if (hasGuestTree()) {
+          const guestDraft = getGuestTree();
+          if (guestDraft && guestDraft.persons && guestDraft.persons.length > 0) {
+            setGuestDraftExists(true);
+            setGuestTreeTitle(guestDraft.tree.title_bn || "পারিবারিক বংশধারা");
+          }
+        }
       }
 
       const { data: treeData, error: treeError } = await supabase
@@ -429,6 +461,51 @@ export default function DashboardPage() {
 
       {/* মূল কন্টেন্ট এরিয়া */}
       <main className="max-w-6xl mx-auto px-4 sm:px-6 py-6 sm:py-8 flex-1 space-y-6 sm:space-y-8 w-full">
+        {/* গেস্ট ড্রাফট সিঙ্ক ব্যানার */}
+        {guestDraftExists && (
+          <div className="p-4 sm:p-5 rounded-3xl bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-300 text-amber-950 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-sm">
+            <div className="flex items-start gap-3">
+              <div className="w-9 h-9 rounded-xl bg-amber-400 text-stone-900 flex items-center justify-center shrink-0 shadow-2xs">
+                <Sparkles className="w-5 h-5 text-stone-950" />
+              </div>
+              <div>
+                <p className="font-bold text-sm sm:text-base font-serif">
+                  আপনার ব্রাউজারে একটি গেস্ট বংশধারা রয়েছে ({guestTreeTitle})
+                </p>
+                <p className="text-xs text-amber-800 mt-0.5">
+                  আপনি এটি সরাসরি আপনার এই অ্যাকাউন্টে স্থায়ীভাবে সংরক্ষণ করতে পারেন অথবা এডিটরে গিয়ে আরও তথ্য যোগ করতে পারেন।
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2.5 shrink-0">
+              <Link
+                href="/tree/guest"
+                className="px-4 py-2 rounded-xl text-xs font-semibold bg-white border border-amber-300/80 text-amber-950 hover:bg-amber-100 transition shadow-2xs"
+              >
+                এডিটরে দেখুন
+              </Link>
+              <button
+                type="button"
+                onClick={handleSyncGuestDraft}
+                disabled={syncingGuest}
+                className="px-4 py-2 rounded-xl text-xs font-bold bg-amber-500 hover:bg-amber-400 text-stone-950 shadow-sm transition flex items-center gap-1.5 cursor-pointer disabled:opacity-60"
+              >
+                {syncingGuest ? (
+                  <>
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    সেভ হচ্ছে...
+                  </>
+                ) : (
+                  <>
+                    <Check className="w-3.5 h-3.5" />
+                    অ্যাকাউন্টে সেভ করুন
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* (১) ডিপ এমারেল্ড গ্রিন ওয়েলকাম কার্ড ও '+ নতুন বংশধারা তৈরি করুন' বাটন */}
         <section className="relative rounded-3xl bg-gradient-to-br from-emerald-950 via-emerald-900 to-stone-900 text-white p-6 sm:p-8 shadow-xl shadow-emerald-950/15 border border-emerald-700/40 overflow-hidden">
           {/* Subtle gold ambient glow */}

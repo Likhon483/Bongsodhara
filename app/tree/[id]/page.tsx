@@ -123,6 +123,10 @@ export default function TreeDetailPage() {
 
   const fetchTreeData = useCallback(async () => {
     if (!treeId) return;
+    if (treeId === "guest") {
+      router.replace("/tree/guest");
+      return;
+    }
     try {
       const {
         data: { user },
